@@ -1,0 +1,11 @@
+{
+  "name": "playerx",
+  "version": "1.0.0",
+  "description": "video sharing and tweeting app",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "walid baharwal",
+  "license": "ISC"
+}

@@ -1,3 +1,2 @@
-
-export const DB_NAME = 'playerx';
-export const LIMIT = '16kb';
+export const DB_NAME = "playerx";
+export const LIMIT = "16kb";

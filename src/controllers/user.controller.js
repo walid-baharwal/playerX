@@ -11,8 +11,8 @@ const validateEmail = (email) => {
 };
 
 const userRegistration = asyncHandler(async (req, res) => {
-  
     const { username, fullName, email, password } = req.body;
+
     if (
         [username, fullName, email, password].some(
             (field) => field?.trim() === ""
@@ -31,12 +31,11 @@ const userRegistration = asyncHandler(async (req, res) => {
     if (existingUser) {
         throw new apiError(400, "Email or username already exists");
     }
-   
+
     const avatarLocalPath = req.files?.avatar[0]?.path;
-   
+
     let coverImageLocalPath;
     if (req.files?.coverImage) {
-       
         coverImageLocalPath = req.files.coverImage[0].path;
     }
     if (!avatarLocalPath) {
@@ -69,4 +68,85 @@ const userRegistration = asyncHandler(async (req, res) => {
     );
 });
 
-export { userRegistration };
+const generateAccessAndRefreshTokens = async (user) => {
+    try {
+        const accessToken = user.generateAccessToken();
+        const refreshToken = user.generateRefreshToken();
+        user.refreshToken = refreshToken;
+        await user.save({ validateBeforeSave: false });
+        return { accessToken, refreshToken };
+    } catch (error) {
+        throw new apiError(
+            500,
+            "Something went wrong while generating access and refresh tokens"
+        );
+    }
+};
+
+//user login
+const loginUser = asyncHandler(async (req, res) => {
+    const { username, email, password } = req.body;
+
+    if (!username && !email) {
+        throw new apiError(400, "username or email required");
+    }
+    const user = await User.findOne({
+        $or: [{ username }, { email }],
+    });
+    if (!user) {
+        throw new apiError(404, "User does not exist");
+    }
+    const isPasswordCorrect = await user.isPasswordCorrect(password);
+    if (!isPasswordCorrect) {
+        throw new apiError(401, "Incorrect credentials");
+    }
+
+    const { accessToken, refreshToken } =
+        await generateAccessAndRefreshTokens(user);
+    const loggedInUser = user.select("-password -refreshToken");
+
+    const options = {
+        httpOnly: true,
+        secure: true,
+    };
+
+    res.status(200)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", refreshToken, options)
+        .json(
+            new apiResponse(
+                200,
+                {
+                    user: loggedInUser,
+                    accessToken,
+                    refreshToken,
+                },
+                "user logged in successfully"
+            )
+        );
+});
+
+//user logout
+const logoutUser = asyncHandler(async (req, res) => {
+    const user = req.user;
+    await User.findByIdAndUpdate(
+        user._id,
+        {
+            $set: { refreshToken: undefined },
+        },
+        {
+            new: true,
+        }
+    );
+    const options = {
+        httpOnly: true,
+        secure: true,
+    };
+
+    res.status(200)
+        .clearCookie("accessToken", options)
+        .clearCookie("refreshToken", options)
+        .json(new apiResponse(200, {}, "user logged out successfully"));
+});
+
+export { userRegistration, loginUser, logoutUser };

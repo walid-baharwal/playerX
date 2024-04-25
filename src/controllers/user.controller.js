@@ -3,6 +3,8 @@ import { apiError } from "../utils/apiError.js";
 import { User } from "../models/user.model.js";
 import { uploadCloudinary } from "../utils/cloudinary.js";
 import { apiResponse } from "../utils/apiResponse.js";
+import jwt from "jsonwebtoken";
+import { options } from "../constants.js";
 
 const validateEmail = (email) => {
     const re =
@@ -13,11 +15,7 @@ const validateEmail = (email) => {
 const userRegistration = asyncHandler(async (req, res) => {
     const { username, fullName, email, password } = req.body;
 
-    if (
-        [username, fullName, email, password].some(
-            (field) => field?.trim() === ""
-        )
-    ) {
+    if ([username, fullName, email, password].some((field) => field?.trim() === "")) {
         throw new apiError(400, "Field cannot be empty");
     }
 
@@ -59,13 +57,9 @@ const userRegistration = asyncHandler(async (req, res) => {
     if (!user) {
         throw new apiError(400, "Something went wrong while registering user");
     }
-    const createdUser = await User.findById(user._id).select(
-        "-password -refreshToken"
-    );
+    const createdUser = await User.findById(user._id).select("-password -refreshToken");
 
-    res.status(201).json(
-        new apiResponse(200, createdUser, "User successfully registered")
-    );
+    res.status(201).json(new apiResponse(200, createdUser, "User successfully registered"));
 });
 
 const generateAccessAndRefreshTokens = async (user) => {
@@ -76,10 +70,7 @@ const generateAccessAndRefreshTokens = async (user) => {
         await user.save({ validateBeforeSave: false });
         return { accessToken, refreshToken };
     } catch (error) {
-        throw new apiError(
-            500,
-            "Something went wrong while generating access and refresh tokens"
-        );
+        throw new apiError(500, "Something went wrong while generating access and refresh tokens");
     }
 };
 
@@ -101,14 +92,11 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new apiError(401, "Incorrect credentials");
     }
 
-    const { accessToken, refreshToken } =
-        await generateAccessAndRefreshTokens(user);
-    const loggedInUser = user.select("-password -refreshToken");
-
-    const options = {
-        httpOnly: true,
-        secure: true,
-    };
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user);
+    console.log("login --", refreshToken);
+    const loggedInUser = user;
+    delete loggedInUser.password;
+    delete loggedInUser.refreshToken;
 
     res.status(200)
         .cookie("accessToken", accessToken, options)
@@ -129,6 +117,7 @@ const loginUser = asyncHandler(async (req, res) => {
 //user logout
 const logoutUser = asyncHandler(async (req, res) => {
     const user = req.user;
+    console.log("logout user");
     await User.findByIdAndUpdate(
         user._id,
         {
@@ -138,15 +127,38 @@ const logoutUser = asyncHandler(async (req, res) => {
             new: true,
         }
     );
-    const options = {
-        httpOnly: true,
-        secure: true,
-    };
-
     res.status(200)
         .clearCookie("accessToken", options)
         .clearCookie("refreshToken", options)
         .json(new apiResponse(200, {}, "user logged out successfully"));
 });
 
-export { userRegistration, loginUser, logoutUser };
+const updateAccessToken = asyncHandler(async (req, res) => {
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+
+    if (!incomingRefreshToken) {
+        throw new apiError(401, "unauthorized request");
+    }
+
+    const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+    if (!decodedToken) {
+        throw new apiError(401, "invalid refresh token");
+    }
+    const user = await User.findById(decodedToken).select("-password");
+
+    const { accessToken, refreshToken: newRefreshToken } =
+        await generateAccessAndRefreshTokens(user);
+
+    res.status(200)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", newRefreshToken, options)
+        .json(
+            new apiResponse(
+                200,
+                { accessToken, refreshToken: newRefreshToken },
+                "accessToken updated successfully"
+            )
+        );
+});
+
+export { userRegistration, loginUser, logoutUser, updateAccessToken };

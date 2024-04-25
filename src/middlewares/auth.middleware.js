@@ -6,19 +6,20 @@ import { apiError } from "../utils/apiError.js";
 export const verifyJWT = asyncHandler(async (req, _, next) => {
     try {
         const token =
-            req.cookies?.accessToken ||
-            req.header("Authorization")?.replace("Bearer ", "");
-
+        req.cookies?.accessToken ||
+        req.header("Authorization")?.replace("Bearer ", "");
+        
         if (!token) {
             throw new apiError(401, "unauthorized request");
         }
 
         const decodedToken = jwt.verify(
-            "accessToken",
+        token,
             process.env.ACCESS_TOKEN_SECRET
         );
+      
 
-        const user = User.findById(decodedToken?._id).select(
+        const user = await User.findById(decodedToken?._id).select(
             "-password -refreshToken"
         );
 

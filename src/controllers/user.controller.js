@@ -5,12 +5,12 @@ import { uploadCloudinary } from "../utils/cloudinary.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken";
 import { options } from "../constants.js";
-
-const validateEmail = (email) => {
-    const re =
-        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-    return re.test(String(email).toLowerCase());
-};
+import {
+    validateEmail,
+    generateAccessAndRefreshTokens,
+    generatePasswordResetToken,
+    sendPasswordResetEmail,
+} from "../utils/user.utils.js";
 
 const userRegistration = asyncHandler(async (req, res) => {
     const { username, fullName, email, password } = req.body;
@@ -62,18 +62,6 @@ const userRegistration = asyncHandler(async (req, res) => {
     res.status(201).json(new apiResponse(200, createdUser, "User successfully registered"));
 });
 
-const generateAccessAndRefreshTokens = async (user) => {
-    try {
-        const accessToken = user.generateAccessToken();
-        const refreshToken = user.generateRefreshToken();
-        user.refreshToken = refreshToken;
-        await user.save({ validateBeforeSave: false });
-        return { accessToken, refreshToken };
-    } catch (error) {
-        throw new apiError(500, "Something went wrong while generating access and refresh tokens");
-    }
-};
-
 //user login
 const loginUser = asyncHandler(async (req, res) => {
     const { username, email, password } = req.body;
@@ -119,7 +107,6 @@ const loginUser = asyncHandler(async (req, res) => {
 //user logout
 const logoutUser = asyncHandler(async (req, res) => {
     const user = req.user;
-    console.log("logout user");
     await User.findByIdAndUpdate(
         user._id,
         {
@@ -229,8 +216,8 @@ const updateCoverImage = asyncHandler(async (req, res) => {
 
 const updateUserDetails = asyncHandler(async (req, res) => {
     const { email, fullname } = req.body;
-    if (!email && !fullname) {
-        throw new apiError(400, "All fields are empty");
+    if (!email || !fullname) {
+        throw new apiError(400, "Fields cannot be empty");
     }
     if (email && !validateEmail(email)) {
         throw new apiError(400, "Invalid email format");
@@ -253,4 +240,60 @@ const updateUserDetails = asyncHandler(async (req, res) => {
     res.status(200).json(new apiResponse(200, user, "User details updated successfully"));
 });
 
-export { userRegistration, loginUser, logoutUser, updateAccessToken, updateUserDetails,updateUserPassword,updateAvatar,updateCoverImage,getCurrentUser };
+const forgetPasswordEmail = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (email && !validateEmail(email)) {
+        throw new apiError(400, "Invalid email format");
+    }
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        throw new apiError(400, "No account with that email address exists");
+    }
+    const PasswordResetToken = await generatePasswordResetToken(user);
+    const emailSent = await sendPasswordResetEmail(email, PasswordResetToken);
+    if(!emailSent) {
+        throw new apiError(400, "Error sending reset password email");
+    }
+    res.status(200).json(
+        new apiResponse(200, {}, "A password reset email has been sent to your email address.")
+    );
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+    const { passwordResetToken, newPassword } = req.body;
+    if (!passwordResetToken || !newPassword) {
+        throw new apiError(400, "Field cannot be empty");
+    }
+    const user = await user.findOne({
+        passwordResetToken,
+        passwordResetTokenExpiry: {
+            $gt: Date.now(),
+        },
+    });
+    if (!user) {
+        throw new apiError(400, "Password reset token is invalid or has expired.");
+    }
+
+    user.password = newPassword;
+    user.passwordResetToken = undefined;
+    user.passwordResetTokenExpiry = undefined;
+
+    await user.save({ validateBeforeSave: true });
+    res.status(200).json(new apiResponse(200, {}, "Password has been reset successfully."));
+});
+
+export {
+    userRegistration,
+    loginUser,
+    logoutUser,
+    updateAccessToken,
+    updateUserDetails,
+    updateUserPassword,
+    updateAvatar,
+    updateCoverImage,
+    getCurrentUser,
+    forgetPasswordEmail,
+    resetPassword,
+};

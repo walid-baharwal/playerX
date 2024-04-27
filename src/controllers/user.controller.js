@@ -210,11 +210,11 @@ const updateCoverImage = asyncHandler(async (req, res) => {
 
 const updateUserDetails = asyncHandler(async (req, res) => {
     validateRequest(req);
-    const { email, fullname } = req.body;
+    const { email, fullName } = req.body;
 
     let updateFields = {};
-    if (fullname) {
-        updateFields.fullname = fullname;
+    if (fullName) {
+        updateFields.fullName = fullName;
     }
     if (email) {
         updateFields.email = email;
@@ -253,7 +253,7 @@ const resetPassword = asyncHandler(async (req, res) => {
     if (!passwordResetToken || !newPassword) {
         throw new apiError(400, "Field cannot be empty");
     }
-    const user = await user.findOne({
+    const user = await User.findOne({
         passwordResetToken,
         passwordResetTokenExpiry: {
             $gt: Date.now(),

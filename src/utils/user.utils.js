@@ -1,12 +1,13 @@
 import crypto from "crypto";
 import { apiError } from "./apiError.js";
-
-const validateEmail = (email) => {
-    const re =
-        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-    return re.test(String(email).toLowerCase());
+import sharp from "sharp";
+// Function to validate request and return errors if any
+const validateRequest = (req) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        throw new apiError(400, "", errors.array());
+    }
 };
-
 const generateAccessAndRefreshTokens = async (user) => {
     try {
         const accessToken = user.generateAccessToken();
@@ -15,10 +16,7 @@ const generateAccessAndRefreshTokens = async (user) => {
         await user.save({ validateBeforeSave: false });
         return { accessToken, refreshToken };
     } catch (error) {
-        throw new apiError(
-            500,
-            "Something went wrong while generating access and refresh tokens " + error.message
-        );
+        throw new apiError(500, "Something went wrong while generating access and refresh tokens " + error.message);
     }
 };
 
@@ -30,10 +28,7 @@ const generatePasswordResetToken = async (user) => {
         await user.save({ validateBeforeSave: false });
         return passwordResetToken;
     } catch (error) {
-        throw new apiError(
-            500,
-            "Something went wrong while generating password reset token " + error.message
-        );
+        throw new apiError(500, "Something went wrong while generating password reset token " + error.message);
     }
 };
 
@@ -47,7 +42,7 @@ const sendPasswordResetEmail = async (email, passwordResetToken) => {
                 pass: process.env.EMAIL_PASSWORD,
             },
         });
-    
+
         const mailOptions = {
             to: email,
             from: "your-email@example.com",
@@ -62,18 +57,30 @@ const sendPasswordResetEmail = async (email, passwordResetToken) => {
             console.error("Error sending email:", error);
             return false; // Indicate failure
         }
-        
     } catch (error) {
-        throw new apiError(
-            500,
-            "Something went wrong while sending reset link " + error.message
-        );
+        throw new apiError(500, "Something went wrong while sending reset link " + error.message);
     }
 };
+const validateImage = async (filePath, minWidth, minHeight, maxSizeMB) => {
+    const metadata = await sharp(filePath).metadata();
+    if (metadata.format !== 'png'  && metadata.format !== 'gif' && metadata.format !== 'jpeg' && metadata.format !== 'jpg') {
+        throw new Error('Invalid file type, only PNG jpeg jpg or GIF (no animations) is allowed!');
+    }
 
+    // Check dimensions
+    if (metadata.width < minWidth || metadata.height < minHeight) {
+        throw new apiError(400, `Image dimensions must be at least ${minWidth} x ${minHeight} pixels.`);
+    }
+
+    const fileSizeMB = metadata.size / (1024 * 1024);
+    if (fileSizeMB > maxSizeMB) {
+        throw new apiError(400, `File size must be less than ${maxSizeMB}MB.`);
+    }
+};
 export {
-    validateEmail,
+    validateRequest,
     generateAccessAndRefreshTokens,
     generatePasswordResetToken,
     sendPasswordResetEmail,
+    validateImage,
 };

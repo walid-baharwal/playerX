@@ -6,21 +6,20 @@ import { apiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken";
 import { options } from "../constants.js";
 import {
-    validateEmail,
+    validateRequest,
     generateAccessAndRefreshTokens,
     generatePasswordResetToken,
     sendPasswordResetEmail,
+    validateImage,
 } from "../utils/user.utils.js";
 
 const userRegistration = asyncHandler(async (req, res) => {
+    validateRequest(req);
+
     const { username, fullName, email, password } = req.body;
 
     if ([username, fullName, email, password].some((field) => field?.trim() === "")) {
         throw new apiError(400, "Field cannot be empty");
-    }
-
-    if (!validateEmail(email)) {
-        throw new apiError(400, "Invalid email format");
     }
 
     const existingUser = await User.findOne({
@@ -31,13 +30,15 @@ const userRegistration = asyncHandler(async (req, res) => {
     }
 
     const avatarLocalPath = req.files?.avatar[0]?.path;
+    if (!avatarLocalPath) {
+        throw new apiError(400, "Avatar is missing");
+    }
+    await validateImage(avatarLocalPath, 98, 98, 4);
 
     let coverImageLocalPath;
     if (req.files?.coverImage) {
         coverImageLocalPath = req.files.coverImage[0].path;
-    }
-    if (!avatarLocalPath) {
-        throw new apiError(400, "Avatar is missing");
+        await validateImage(coverImageLocalPath, 2048, 1152, 6);
     }
     const avatar = await uploadCloudinary(avatarLocalPath);
     if (!avatar) {
@@ -66,12 +67,8 @@ const userRegistration = asyncHandler(async (req, res) => {
 const loginUser = asyncHandler(async (req, res) => {
     const { username, email, password } = req.body;
 
-    if (!username && !email) {
-        throw new apiError(400, "username or email required");
-    }
-    if (!validateEmail(email)) {
-        throw new apiError(400, "Invalid email format");
-    }
+    validateRequest(req);
+
     const user = await User.findOne({
         $or: [{ username }, { email }],
     });
@@ -136,22 +133,16 @@ const updateAccessToken = asyncHandler(async (req, res) => {
     }
     const user = await User.findById(decodedToken).select("-password");
 
-    const { accessToken, refreshToken: newRefreshToken } =
-        await generateAccessAndRefreshTokens(user);
+    const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefreshTokens(user);
 
     res.status(200)
         .cookie("accessToken", accessToken, options)
         .cookie("refreshToken", newRefreshToken, options)
-        .json(
-            new apiResponse(
-                200,
-                { accessToken, refreshToken: newRefreshToken },
-                "accessToken updated successfully"
-            )
-        );
+        .json(new apiResponse(200, { accessToken, refreshToken: newRefreshToken }, "accessToken updated successfully"));
 });
 
 const updateUserPassword = asyncHandler(async (req, res) => {
+    validateRequest(req);
     const { oldPassword, newPassword } = req.body;
     const user = await User.findById(req.user._id);
     const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
@@ -176,6 +167,7 @@ const updateAvatar = asyncHandler(async (req, res) => {
     if (!avatarLocalPath) {
         throw new apiError(400, "Avatar is required");
     }
+    await validateImage(avatarLocalPath, 98, 98, 4);
     const avatar = await uploadCloudinary(avatarLocalPath);
     if (!avatar) {
         throw new apiError(400, "Error while uploading avatar");
@@ -197,6 +189,8 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     if (!coverImageLocalPath) {
         throw new apiError(400, "CoverImage is required");
     }
+    await validateImage(coverImageLocalPath, 2048, 1152, 6);
+
     const coverImage = await uploadCloudinary(coverImageLocalPath);
     if (!coverImage) {
         throw new apiError(400, "Error while uploading avatar");
@@ -215,13 +209,9 @@ const updateCoverImage = asyncHandler(async (req, res) => {
 });
 
 const updateUserDetails = asyncHandler(async (req, res) => {
+    validateRequest(req);
     const { email, fullname } = req.body;
-    if (!email || !fullname) {
-        throw new apiError(400, "Fields cannot be empty");
-    }
-    if (email && !validateEmail(email)) {
-        throw new apiError(400, "Invalid email format");
-    }
+
     let updateFields = {};
     if (fullname) {
         updateFields.fullname = fullname;
@@ -241,11 +231,9 @@ const updateUserDetails = asyncHandler(async (req, res) => {
 });
 
 const forgetPasswordEmail = asyncHandler(async (req, res) => {
+    validateRequest(req);
     const { email } = req.body;
 
-    if (email && !validateEmail(email)) {
-        throw new apiError(400, "Invalid email format");
-    }
     const user = await User.findOne({ email });
 
     if (!user) {
@@ -253,15 +241,14 @@ const forgetPasswordEmail = asyncHandler(async (req, res) => {
     }
     const PasswordResetToken = await generatePasswordResetToken(user);
     const emailSent = await sendPasswordResetEmail(email, PasswordResetToken);
-    if(!emailSent) {
+    if (!emailSent) {
         throw new apiError(400, "Error sending reset password email");
     }
-    res.status(200).json(
-        new apiResponse(200, {}, "A password reset email has been sent to your email address.")
-    );
+    res.status(200).json(new apiResponse(200, {}, "A password reset email has been sent to your email address."));
 });
 
 const resetPassword = asyncHandler(async (req, res) => {
+    validateRequest(req);
     const { passwordResetToken, newPassword } = req.body;
     if (!passwordResetToken || !newPassword) {
         throw new apiError(400, "Field cannot be empty");

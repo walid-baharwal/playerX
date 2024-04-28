@@ -4,3 +4,4 @@ export  const options = {
     httpOnly: true,
     secure: true,
 };
+export const passwordResetTokenExpiry = 8 * 60 * 1000

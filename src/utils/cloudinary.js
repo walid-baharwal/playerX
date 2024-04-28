@@ -10,9 +10,14 @@ cloudinary.config({
 const uploadCloudinary = async (localFilePath) => {
     try {
         if (!localFilePath) return "Path not found";
-        const resposne = await cloudinary.uploader.upload(localFilePath, {
-            resource_type: "auto",
-        });
+        const resposne = await cloudinary.uploader.upload(
+            localFilePath,
+            {
+                resource_type: "auto",
+                folder: "user-profile",
+            },
+            
+        );
         fs.unlinkSync(localFilePath);
         return resposne;
     } catch (error) {
@@ -21,4 +26,12 @@ const uploadCloudinary = async (localFilePath) => {
     }
 };
 
-export { uploadCloudinary };
+const deleteFromCloudinary = async (public_id, type)=>{
+    try {
+        await cloudinary.uploader.destroy(public_id,{resource_type: type,});
+      } catch (error) {
+        return "Error deleting image from cloudinary: " + error.message;;
+      }
+    
+}
+export { uploadCloudinary, deleteFromCloudinary };

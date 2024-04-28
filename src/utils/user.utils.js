@@ -1,13 +1,9 @@
 import crypto from "crypto";
 import { apiError } from "./apiError.js";
 import sharp from "sharp";
-// Function to validate request and return errors if any
-const validateRequest = (req) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        throw new apiError(400, "", errors.array());
-    }
-};
+import nodemailer from "nodemailer";
+import fs from "fs";
+
 const generateAccessAndRefreshTokens = async (user) => {
     try {
         const accessToken = user.generateAccessToken();
@@ -22,9 +18,8 @@ const generateAccessAndRefreshTokens = async (user) => {
 
 const generatePasswordResetToken = async (user) => {
     try {
-        const resetToken = crypto.randomBytes(20).toString("hex");
-        user.passwordResetToken = resetToken;
-        user.passwordResetTokenExpiry = Date.now() + 3600000;
+        const passwordResetToken = crypto.randomBytes(25).toString("hex");
+        user.passwordResetToken = passwordResetToken;
         await user.save({ validateBeforeSave: false });
         return passwordResetToken;
     } catch (error) {
@@ -37,6 +32,7 @@ const sendPasswordResetEmail = async (email, passwordResetToken) => {
     try {
         const transporter = nodemailer.createTransport({
             service: process.env.EMAIL_SERVICE_PROVIDER,
+            host:process.env.EMAIL_HOST,
             auth: {
                 user: process.env.EMAIL_USERNAME,
                 pass: process.env.EMAIL_PASSWORD,
@@ -45,7 +41,7 @@ const sendPasswordResetEmail = async (email, passwordResetToken) => {
 
         const mailOptions = {
             to: email,
-            from: "your-email@example.com",
+            from: "playerX",
             subject: "Password Reset",
             text: `You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\nPlease click on the following link, or paste this into your browser to complete the process within one hour of receiving it:\n\nhttp://your-app-url.com/reset/${passwordResetToken}\n\nIf you did not request this, please ignore this email and your password will remain unchanged.\n`,
         };
@@ -63,22 +59,34 @@ const sendPasswordResetEmail = async (email, passwordResetToken) => {
 };
 const validateImage = async (filePath, minWidth, minHeight, maxSizeMB) => {
     const metadata = await sharp(filePath).metadata();
-    if (metadata.format !== 'png'  && metadata.format !== 'gif' && metadata.format !== 'jpeg' && metadata.format !== 'jpg') {
-        throw new Error('Invalid file type, only PNG jpeg jpg or GIF (no animations) is allowed!');
+    if (
+        metadata.format !== "png" &&
+        metadata.format !== "gif" &&
+        metadata.format !== "jpeg" &&
+        metadata.format !== "jpg"
+    ) {
+         
+        /* unlinking here beacuse if someone upload  a image that does not match the format or requirement an
+         error is thrown but the file still remain in public folder beacuse multer already save 
+         the file in public folder by doing this if an error occured unnessory file will be unlinked*/
+        fs.unlinkSync(filePath);
+        throw new Error("Invalid file type, only PNG jpeg jpg or GIF (no animations) is allowed!");
     }
 
     // Check dimensions
     if (metadata.width < minWidth || metadata.height < minHeight) {
+         fs.unlinkSync(filePath);
         throw new apiError(400, `Image dimensions must be at least ${minWidth} x ${minHeight} pixels.`);
     }
 
     const fileSizeMB = metadata.size / (1024 * 1024);
     if (fileSizeMB > maxSizeMB) {
+         fs.unlinkSync(filePath);
         throw new apiError(400, `File size must be less than ${maxSizeMB}MB.`);
     }
 };
 export {
-    validateRequest,
+   
     generateAccessAndRefreshTokens,
     generatePasswordResetToken,
     sendPasswordResetEmail,

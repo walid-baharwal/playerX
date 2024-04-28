@@ -4,7 +4,7 @@ class apiError extends Error {
         message = "something went wrong",
         errors = [],
         stack = ""
-    ) {
+    ) { 
         super(message);
         this.name = this.constructor.name;
         this.statusCode = statusCode;

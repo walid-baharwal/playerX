@@ -1,4 +1,5 @@
  import {check , validationResult, oneOf} from "express-validator"
+ import { apiError } from "../utils/apiError.js";
 
 
  const validateUserRegistration = [
@@ -9,7 +10,8 @@
     (req, _, next) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            throw new apiError(400, "", errors.array());
+           
+            throw new apiError(400, "User Registration Validation", errors.array());
         }
         next();
     }
@@ -31,7 +33,7 @@ const validateUserLogin = [
     (req, _, next) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            throw new apiError(400, "", errors.array());
+            throw new apiError(400, "User Login Validation", errors.array());
         }
         next();
     }
@@ -51,25 +53,39 @@ const validateUserUpdatingDetails = [
     (req, _, next) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            throw new apiError(400, "", errors.array());
+            throw new apiError(400, "User updating details Validation", errors.array());
         }
         next();
     }
 ];
-const validateResetPasswordoperation = [
-    oneOf([
+const validateUpdatePassword = [
+   [
         [
-            check('email').isEmail().withMessage('Invalid email format').normalizeEmail(),
-        ],
-        [
-            check('password').isLength({ min: 6 }).trim().escape().withMessage('Password must be at least 6 characters long'),
+            check('oldPassword').trim().escape().optional(),
+            check('newPassword').isLength({ min: 6 }).trim().escape().withMessage('Password must be at least 6 characters long'),
+            
         ]
-    ], 'You must provide either a username or an email along with a password'),
+    ], 
 
     (req, _, next) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            throw new apiError(400, "", errors.array());
+            throw new apiError(400, "Password Validation", errors.array());
+        }
+        next();
+    }
+];
+const validateEmail = [
+   [
+        [
+            check('email').isEmail().withMessage('Invalid email format').normalizeEmail(),
+        ]
+    ], 
+
+    (req, _, next) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            throw new apiError(400, "Eamil Validation", errors.array());
         }
         next();
     }
@@ -79,5 +95,6 @@ export {
     validateUserRegistration,
     validateUserLogin,
     validateUserUpdatingDetails,
-    validateResetPasswordoperation
+    validateUpdatePassword,
+    validateEmail
 }

@@ -19,7 +19,7 @@ import {
     validateUserLogin,
     validateUserUpdatingDetails,
     validateEmail,
-    validateUpdatePassword
+    validateUpdatePassword,
 } from "../middlewares/validation.midlleware.js";
 
 const router = Router();
@@ -46,7 +46,7 @@ router.route("/get-user").get(verifyJWT, getCurrentUser);
 
 //updating routes
 router.route("/update-user-details").put(validateUserUpdatingDetails, verifyJWT, updateUserDetails);
-router.route("/update-user-password").put(validateUpdatePassword,verifyJWT, updateUserPassword);
+router.route("/update-user-password").put(validateUpdatePassword, verifyJWT, updateUserPassword);
 
 router.route("/update-avatar").put(upload.single("avatar"), verifyJWT, updateAvatar);
 router.route("/update-coverimage").put(upload.single("coverImage"), verifyJWT, updateCoverImage);

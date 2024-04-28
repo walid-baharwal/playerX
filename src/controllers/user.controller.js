@@ -4,20 +4,17 @@ import { User } from "../models/user.model.js";
 import { uploadCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken";
-import { options, passwordResetTokenExpiry } from "../constants.js";
+import { options } from "../constants.js";
 import {
-    // //validateRequest,
     generateAccessAndRefreshTokens,
     generatePasswordResetToken,
     sendPasswordResetEmail,
     validateImage,
 } from "../utils/user.utils.js";
-import { passwordResetQueue } from "../utils/passwordResetQueue.js";
 
 const userRegistration = asyncHandler(async (req, res) => {
-    
     const { username, fullName, email, password } = req.body;
-    
+
     if ([username, fullName, email, password].some((field) => field?.trim() === "")) {
         throw new apiError(400, "Field cannot be empty");
     }
@@ -29,7 +26,6 @@ const userRegistration = asyncHandler(async (req, res) => {
         throw new apiError(400, "Email or username already exists");
     }
 
-   
     const avatarLocalPath = req.files?.avatar[0]?.path;
     if (!avatarLocalPath) {
         throw new apiError(400, "Avatar is missing");
@@ -78,8 +74,6 @@ const userRegistration = asyncHandler(async (req, res) => {
 //user login
 const loginUser = asyncHandler(async (req, res) => {
     const { username, email, password } = req.body;
-
-    
 
     const user = await User.findOne({
         $or: [{ username }, { email }],
@@ -153,7 +147,6 @@ const updateAccessToken = asyncHandler(async (req, res) => {
 });
 
 const updateUserPassword = asyncHandler(async (req, res) => {
-   
     const { oldPassword, newPassword } = req.body;
     const user = await User.findById(req.user._id);
     const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
@@ -228,7 +221,6 @@ const updateCoverImage = asyncHandler(async (req, res) => {
 });
 
 const updateUserDetails = asyncHandler(async (req, res) => {
-   
     const { email, fullName } = req.body;
 
     let updateFields = {};
@@ -257,7 +249,6 @@ const updateUserDetails = asyncHandler(async (req, res) => {
 });
 
 const forgetPasswordEmail = asyncHandler(async (req, res) => {
-    
     const { email } = req.body;
 
     const user = await User.findOne({ email });
@@ -265,39 +256,36 @@ const forgetPasswordEmail = asyncHandler(async (req, res) => {
     if (!user) {
         throw new apiError(400, "No account with that email address exists");
     }
-    const passwordResetToken = await generatePasswordResetToken(user);
+    const token = await generatePasswordResetToken(user);
 
-    const emailSent = await sendPasswordResetEmail(email, passwordResetToken);
+    const emailSent = await sendPasswordResetEmail(email, token);
     if (!emailSent) {
         throw new apiError(400, "Error sending reset password email");
     }
-    try {
-        await passwordResetQueue.add('passwordReset', { userId: user._id },{delay: passwordResetTokenExpiry});
-        console.log('Reset password task added to the queue');
-    } catch (error) {
-        console.error('Error adding reset password task to the queue:', error);
-    }
-    
-    res.status(200).json(new apiResponse(200, {passwordResetToken}, "A password reset email has been sent to your email address."));
+
+    res.status(200).json(
+        new apiResponse(200, { token }, "A password reset email has been sent to your email address.")
+    );
 });
 
 const resetPassword = asyncHandler(async (req, res) => {
-    
     const { passwordResetToken, newPassword } = req.body;
     if (!passwordResetToken || !newPassword) {
         throw new apiError(400, "Field cannot be empty");
     }
     const user = await User.findOne({
-        passwordResetToken,
+        "passwordReset.token": passwordResetToken,
+        "passwordReset.tokenExpiry": { $gt: Date.now() },
     });
     if (!user) {
         throw new apiError(400, "Password reset token is invalid or has expired.");
     }
 
     user.password = newPassword;
-    user.passwordResetToken = undefined;
+    user.passwordReset.token = undefined;
+    user.passwordReset.tokenExpiry = undefined;
 
-    await user.save({ validateBeforeSave: true });
+    await user.save({ validateBeforeSave: false });
     res.status(200).json(new apiResponse(200, {}, "Password has been reset successfully."));
 });
 

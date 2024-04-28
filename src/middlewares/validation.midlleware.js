@@ -1,4 +1,4 @@
- import {check , validationResult} from "express-validator"
+ import {check , validationResult, oneOf} from "express-validator"
 
 
  const validateUserRegistration = [

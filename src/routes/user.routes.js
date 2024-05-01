@@ -11,6 +11,7 @@ import {
     getCurrentUser,
     forgetPasswordEmail,
     resetPassword,
+    getUserChannelProfile
 } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -20,6 +21,7 @@ import {
     validateUserUpdatingDetails,
     validateEmail,
     validateUpdatePassword,
+    validateUsername
 } from "../middlewares/validation.midlleware.js";
 
 const router = Router();
@@ -54,5 +56,7 @@ router.route("/update-coverimage").put(upload.single("coverImage"), verifyJWT, u
 //forget Password
 router.route("/forget-password").post(validateEmail, forgetPasswordEmail);
 router.route("/reset-password").put(validateUpdatePassword, resetPassword);
+
+router.route("/get-channel-profile/:username").get(validateUsername,verifyJWT,getUserChannelProfile)
 
 export default router;

@@ -1,6 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { apiError } from "../utils/apiError.js";
 import { User } from "../models/user.model.js";
+import { Subscription } from "../models/subscription.model.js";
 import { uploadCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken";
@@ -163,6 +164,7 @@ const updateUserPassword = asyncHandler(async (req, res) => {
 const getCurrentUser = asyncHandler(async (req, res) => {
     const user = req.user;
 
+
     res.status(200).json(new apiResponse(200, { user }, "Current user fetched successfully"));
 });
 
@@ -287,6 +289,68 @@ const resetPassword = asyncHandler(async (req, res) => {
     res.status(200).json(new apiResponse(200, {}, "Password has been reset successfully."));
 });
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+    const { username } = req.params;
+
+    const channel = await User.aggregate([
+        {
+            $match: {
+                username: username,
+            },
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers",
+            },
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo",
+            },
+        },
+        {
+            $addFields: {
+                subscribers: {
+                    $size: "$subscribers",
+                },
+                subscribed: {
+                    $size: "$subscribedTo",
+                },
+                isSubscribed: {
+                    $cond: {
+                        if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+                        then: true,
+                        else: false,
+                    },
+                },
+            },
+        },
+        {
+            $project: {
+                fullName:1,
+                username:1,
+                "avatar.url":1,
+                "coverImage.url":1,
+                subscribers: 1,
+                subscribed: 1,
+                isSubscribed: 1,
+
+            },
+        },
+    ]);
+    if(!channel){
+        throw new apiError("No channel with this username exists")
+    }
+
+    res.status(200).json(new apiResponse(200, channel[0], "Channel Profile fetched successfully"));
+});
+
 export {
     userRegistration,
     loginUser,
@@ -299,4 +363,5 @@ export {
     getCurrentUser,
     forgetPasswordEmail,
     resetPassword,
+    getUserChannelProfile,
 };

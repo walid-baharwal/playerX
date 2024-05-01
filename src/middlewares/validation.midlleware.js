@@ -6,7 +6,7 @@
     check('fullName').isLength({ min: 2 }).trim().escape().withMessage('Full name must be at least 2 characters long'),
     check('username').isLength({ min: 5 }).trim().escape().withMessage('Username must be at least 5 characters long'),
     check('email').isEmail().withMessage('Invalid email format').normalizeEmail(),
-    check('password').isLength({ min: 6 }).trim().escape().withMessage('Password must be at least 6 characters long'),
+    check('password').isLength({ min: 8 }).trim().escape().withMessage('Password must be at least 8 characters long'),
     (req, _, next) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -22,11 +22,11 @@ const validateUserLogin = [
     oneOf([
         [
             check('username').isLength({ min: 5 }).trim().escape().withMessage('Username must be at least 5 characters long'),
-            check('password').isLength({ min: 6 }).trim().escape().withMessage('Password must be at least 6 characters long'),
+            check('password').isLength({ min: 8 }).trim().escape().withMessage('Password must be at least 8 characters long'),
         ],
         [
             check('email').isEmail().withMessage('Invalid email format').normalizeEmail(),
-            check('password').isLength({ min: 6 }).trim().escape().withMessage('Password must be at least 6 characters long'),
+            check('password').isLength({ min: 8 }).trim().escape().withMessage('Password must be at least 8 characters long'),
         ]
     ], 'You must provide either a username or an email along with a password'),
 
@@ -62,7 +62,7 @@ const validateUpdatePassword = [
    [
         [
             check('oldPassword').trim().escape().optional(),
-            check('newPassword').isLength({ min: 6 }).trim().escape().withMessage('Password must be at least 6 characters long'),
+            check('newPassword').isLength({ min: 8 }).trim().escape().withMessage('Password must be at least 8 characters long'),
             
         ]
     ], 
@@ -90,11 +90,27 @@ const validateEmail = [
         next();
     }
 ];
+const validateUsername = [
+   [
+        [
+            check('username').isLength({ min: 5 }).trim().escape().withMessage('username must be at least 5 characters long'),
+        ]
+    ], 
+
+    (req, _, next) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            throw new apiError(400, "Eamil Validation", errors.array());
+        }
+        next();
+    }
+];
 
 export {
     validateUserRegistration,
     validateUserLogin,
     validateUserUpdatingDetails,
     validateUpdatePassword,
-    validateEmail
+    validateEmail,
+    validateUsername
 }

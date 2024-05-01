@@ -5,26 +5,26 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { apiError } from "../utils/apiError.js";
 
 const channelSubscription = asyncHandler(async (req, res) => {
-    const { channelOwnerUsername } = req.body;
+    const { username } = req.body;
 
-    if (!channelOwnerUsername) {
+    if (!username) {
         throw new apiError(400, "ChannelOwner is required");
     }
-    const channelOwnerDetails = await User.findOne({ username: channelOwnerUsername });
-    if (!channelOwnerDetails) {
+    const channelOwner = await User.findOne({ username });
+    if (!channelOwner) {
         throw new apiError(400, "Channel not found");
     }
     const existingSubscription = await Subscription.findOne({
         subscriber: req.user._id,
-        channel: channelOwnerDetails._id,
+        channel: channelOwner._id,
     });
 
     if (existingSubscription) {
         throw new apiError(400, "Already subscribed");
     }
-    const channelSubscribed = await Subscription.create({
+     await Subscription.create({
         subscriber: req.user._id,
-        channel: channelOwnerDetails._id,
+        channel: channelOwner._id,
     });
 
     res.status(200).json(new apiResponse(200, {}, "Channel subscribed successfully"));

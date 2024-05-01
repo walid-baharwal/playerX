@@ -263,9 +263,7 @@ const forgetPasswordEmail = asyncHandler(async (req, res) => {
         throw new apiError(400, "Error sending reset password email");
     }
 
-    res.status(200).json(
-        new apiResponse(200, { token }, "A password reset email has been sent to your email address.")
-    );
+    res.status(200).json(new apiResponse(200, {}, "A password reset email has been sent to your email address."));
 });
 
 const resetPassword = asyncHandler(async (req, res) => {

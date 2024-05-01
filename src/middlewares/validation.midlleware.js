@@ -100,7 +100,7 @@ const validateUsername = [
     (req, _, next) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            throw new apiError(400, "Eamil Validation", errors.array());
+            throw new apiError(400, "Username Validation", errors.array());
         }
         next();
     }

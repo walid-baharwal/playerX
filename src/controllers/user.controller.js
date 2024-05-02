@@ -164,7 +164,6 @@ const updateUserPassword = asyncHandler(async (req, res) => {
 const getCurrentUser = asyncHandler(async (req, res) => {
     const user = req.user;
 
-
     res.status(200).json(new apiResponse(200, { user }, "Current user fetched successfully"));
 });
 
@@ -333,22 +332,66 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         },
         {
             $project: {
-                fullName:1,
-                username:1,
-                "avatar.url":1,
-                "coverImage.url":1,
+                fullName: 1,
+                username: 1,
+                "avatar.url": 1,
+                "coverImage.url": 1,
                 subscribers: 1,
                 subscribed: 1,
                 isSubscribed: 1,
-
             },
         },
     ]);
-    if(!channel){
-        throw new apiError("No channel with this username exists")
+    if (!channel) {
+        throw new apiError("No channel with this username exists");
     }
 
     res.status(200).json(new apiResponse(200, channel[0], "Channel Profile fetched successfully"));
+});
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user._id),
+            },
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "videos",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1,
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        $addFields: {
+                            owner: {
+                                $first: "$owner",
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+    ]);
+    return res.status(200).json(new apiResponse(200, user[0].watchHistory, "Watch history fetched successfully"));
 });
 
 export {
@@ -364,4 +407,5 @@ export {
     forgetPasswordEmail,
     resetPassword,
     getUserChannelProfile,
+    getWatchHistory
 };

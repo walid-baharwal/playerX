@@ -113,7 +113,7 @@ const logoutUser = asyncHandler(async (req, res) => {
     await User.findByIdAndUpdate(
         user._id,
         {
-            $set: { refreshToken: undefined },
+            $unset: { refreshToken: 1 },
         },
         {
             new: true,
@@ -294,7 +294,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     const channel = await User.aggregate([
         {
             $match: {
-                username: username,
+                username: username?.toLowerCase(),
             },
         },
         {

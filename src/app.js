@@ -21,9 +21,11 @@ app.use(cookieParser());
 // Routes
 import userRouter from "./routes/user.routes.js";
 import subscriptionRouter from "./routes/subscription.routes.js";
+import likeRouter from "./routes/like.routes.js";
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/subscription", subscriptionRouter);
+app.use("/api/v1/like", likeRouter);
 
 app.use((err, req, res, next) => {
     if (err instanceof apiError) {

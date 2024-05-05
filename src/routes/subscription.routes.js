@@ -6,7 +6,7 @@ import { validateUsername } from "../middlewares/validation.midlleware.js";
 const router = Router();
 
 //
-router.route("/subscribe/:username").post(validateUsername,verifyJWT, channelSubscription);
-router.route("/unsubscribe/:username").delete(validateUsername,verifyJWT, unsubscribeChannel);
+router.route("/subscribe/:username").post(validateUsername, verifyJWT, channelSubscription);
+router.route("/unsubscribe/:username").delete(validateUsername, verifyJWT, unsubscribeChannel);
 
 export default router;

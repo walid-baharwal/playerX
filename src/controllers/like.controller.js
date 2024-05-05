@@ -13,7 +13,7 @@ const toggleVideolike = asyncHandler(async (req, res) => {
         video: videoId,
         likeBy: req.user._id,
     });
-    console.log("existing like ", existingLike);
+
     if (existingLike) {
         res.status(200).json(new apiResponse(200, {}, "Video Like removed Successfully"));
     } else {
@@ -27,7 +27,6 @@ const toggleVideolike = asyncHandler(async (req, res) => {
 });
 
 const toggleCommentLike = asyncHandler(async (req, res) => {
-    console.log("comment called");
     const { commentId } = req.params;
     if (!commentId) {
         throw new apiError(400, "commentId is required");
@@ -48,7 +47,6 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
     }
 });
 const toggleTweetLike = asyncHandler(async (req, res) => {
-    console.log("tweet called");
     const { tweetId } = req.params;
     if (!tweetId) {
         throw new apiError(400, "tweetId is required");
@@ -78,7 +76,7 @@ const getLikedVideos = asyncHandler(async (req, res) => {
         },
         {
             $lookup: {
-                from: "video",
+                from: "videos",
                 localField: "video",
                 foreignField: "_id",
                 as: "likedVideo",
@@ -126,14 +124,13 @@ const getLikedVideos = asyncHandler(async (req, res) => {
             },
         },
         {
-
-            $project:{
-                likedVideo:1
-            }
-        }
+            $project: {
+                likedVideo: 1,
+            },
+        },
     ]);
 
-    res.status(200).json( new apiResponse(200, likedVideos, " liked videos fetched successfully") );
+    res.status(200).json(new apiResponse(200, likedVideos, " liked videos fetched successfully"));
 });
 
-export { toggleVideolike, toggleCommentLike, toggleTweetLike, getLikedVideos};
+export { toggleVideolike, toggleCommentLike, toggleTweetLike, getLikedVideos };

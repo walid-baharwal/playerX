@@ -22,11 +22,14 @@ app.use(cookieParser());
 import userRouter from "./routes/user.routes.js";
 import subscriptionRouter from "./routes/subscription.routes.js";
 import likeRouter from "./routes/like.routes.js";
+import videoRouter from "./routes/video.routes.js";
 
-app.use("/api/v1/users", userRouter);
-app.use("/api/v1/subscription", subscriptionRouter);
+app.use("/api/v1/u", userRouter);
+app.use("/api/v1/sub", subscriptionRouter);
 app.use("/api/v1/like", likeRouter);
+app.use("/api/v1/v", videoRouter);
 
+//Error handling for all errors
 app.use((err, req, res, next) => {
     if (err instanceof apiError) {
         console.log("Error: " + err.message);

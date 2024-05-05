@@ -1,10 +1,9 @@
 import mongoose from "mongoose";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { apiError } from "../utils/apiError.js";
-import { User } from "../models/user.model.js";
-import { Subscription } from "../models/subscription.model.js";
-import { uploadCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 import { apiResponse } from "../utils/apiResponse.js";
+import { uploadCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
+import { User } from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 import { options } from "../constants.js";
 import {

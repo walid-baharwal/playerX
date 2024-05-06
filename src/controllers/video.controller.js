@@ -4,6 +4,8 @@ import { apiResponse } from "../utils/apiResponse.js";
 import { uploadCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 import { Video } from "../models/video.model.js";
 import { View } from "../models/view.model.js";
+import { Subscription } from "../models/subscription.model.js";
+import mongoose from "mongoose";
 
 const uploadVideo = asyncHandler(async (req, res) => {
     const { title, description, isPublished, duration } = req.body;
@@ -75,6 +77,101 @@ const deleteVideo = asyncHandler(async (req, res) => {
     res.status(200).json(new apiResponse(200, {}, "video deleted successfully"));
 });
 
+const getAllVideos = asyncHandler(async (req, res) => {
+    const options = {
+        page: req.query.page || 1,
+        limit: req.query.limit || 20,
+        sort: req.query.sort ? { createdAt: parseInt(req.query.sort) } : { createdAt: -1 },
+    };
+    const pipeline = Video.aggregate([
+        {
+            $match: {
+                isPublished: true,
+            },
+        },
+    ]);
+    const videos = await Video.aggregatePaginate(pipeline, options);
+    if (!videos) {
+        throw new apiError(500, "Error fetching videos");
+    }
+    res.status(200).json(new apiResponse(200, videos, "Videos fetched successfully"));
+});
+
+const getSubscriptionVideos = asyncHandler(async (req, res) => {
+    const _id = req.user._id;
+    const options = {
+        page: req.query.page || 1,
+        limit: req.query.limit || 20,
+        sort: req.query.sort ? { createdAt: parseInt(req.query.sort) } : { createdAt: -1 },
+    };
+    const pipeline = Subscription.aggregate([
+        {
+            $match: {
+                subscriber: new mongoose.Types.ObjectId(_id),
+            },
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "channel",
+                foreignField: "owner",
+                as: "subscriptionVideos",
+            },
+        },
+        {
+            $unwind: "$subscriptionVideos",
+        },
+        {
+            $match: {
+                "subscriptionVideos.isPublished": true,
+            },
+        },
+        {
+            $replaceRoot: { newRoot: "$subscriptionVideos" },
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [
+                    {
+                        $project: {
+                            fullName: 1,
+                            avatar: 1,
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            $addFields: {
+                owner: {
+                    $first: "$owner",
+                },
+            },
+        },
+        {
+            $project: {
+                videoFile: 1,
+                thumbnail: 1,
+                title: 1,
+                duration: 1,
+                views: 1,
+                owner: 1,
+                createdAt: 1,
+            },
+        },
+    ]);
+    // Use aggregatePaginate on the Video model
+    const videos = await Subscription.aggregatePaginate(pipeline, options);
+    if (!videos) {
+        throw new apiError(500, "Error fetching videos");
+    }
+    res.status(200).json(new apiResponse(200, videos, "Videos fetched successfully"));
+});
+
 const addVideoView = asyncHandler(async (req, res) => {
     const { user_id, video_id } = req.body;
     if (!video_id) {
@@ -94,4 +191,4 @@ const addVideoView = asyncHandler(async (req, res) => {
         res.status(200).json(new apiResponse(200, {}, "view successfully added"));
     }
 });
-export { uploadVideo, toggleVideoPublish, deleteVideo, addVideoView };
+export { uploadVideo, toggleVideoPublish, deleteVideo, getAllVideos, getSubscriptionVideos, addVideoView };

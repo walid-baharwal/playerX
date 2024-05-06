@@ -6,6 +6,7 @@ import { Video } from "../models/video.model.js";
 import { View } from "../models/view.model.js";
 import { Subscription } from "../models/subscription.model.js";
 import mongoose from "mongoose";
+import { User } from "../models/user.model.js";
 
 const uploadVideo = asyncHandler(async (req, res) => {
     const { title, description, isPublished, duration } = req.body;
@@ -40,7 +41,7 @@ const uploadVideo = asyncHandler(async (req, res) => {
         owner: req.user._id,
     });
 
-    res.status(200).json(new apiResponse(200, { savedvideo }, "video uploaded successfully"));
+    res.status(200).json(new apiResponse(200, savedvideo, "video uploaded successfully"));
 });
 
 const toggleVideoPublish = asyncHandler(async (req, res) => {
@@ -75,6 +76,74 @@ const deleteVideo = asyncHandler(async (req, res) => {
     await deleteFromCloudinary(video.videoFile.public_id, "video");
     await deleteFromCloudinary(video.thumbnail.public_id, "image");
     res.status(200).json(new apiResponse(200, {}, "video deleted successfully"));
+});
+
+const getVideo = asyncHandler(async (req, res) => {
+    const { _id } = req.params;
+    if (!_id) {
+        throw new apiError(400, " Video Id is missing");
+    }
+    const video = await Video.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(_id),
+            },
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "subscriptions",
+                            localField: "_id",
+                            foreignField: "channel",
+                            as: "subscribers",
+                        },
+                    },
+                    {
+                        $addFields: {
+                            subscribers: { $size: "$subscribers" },
+                        },
+                    },
+                    {
+                        $project: {
+                            username: 1,
+                            fullName: 1,
+                            "avatar.url": 1,
+                            subscribers: 1,
+                        },
+                    },
+                ],
+            },
+        },
+
+        {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "video",
+                as: "likes",
+            },
+        },
+        {
+            $addFields: {
+                likes: {
+                    $size: "$likes",
+                },
+                owner: {
+                    $first: "$owner",
+                },
+            },
+        },
+    ]);
+    if (!video) {
+        throw new apiError(400, " Video not found");
+    }
+    res.status(200).json(new apiResponse(200, video[0], "video details fetched successfully"));
 });
 
 const getAllVideos = asyncHandler(async (req, res) => {
@@ -138,8 +207,9 @@ const getSubscriptionVideos = asyncHandler(async (req, res) => {
                 pipeline: [
                     {
                         $project: {
+                            username: 1,
                             fullName: 1,
-                            avatar: 1,
+                            "avatar.url": 1,
                         },
                     },
                 ],
@@ -154,8 +224,8 @@ const getSubscriptionVideos = asyncHandler(async (req, res) => {
         },
         {
             $project: {
-                videoFile: 1,
-                thumbnail: 1,
+                "videoFile.url": 1,
+                "thumbnail.url": 1,
                 title: 1,
                 duration: 1,
                 views: 1,
@@ -164,12 +234,12 @@ const getSubscriptionVideos = asyncHandler(async (req, res) => {
             },
         },
     ]);
-    // Use aggregatePaginate on the Video model
+   
     const videos = await Subscription.aggregatePaginate(pipeline, options);
     if (!videos) {
         throw new apiError(500, "Error fetching videos");
     }
-    res.status(200).json(new apiResponse(200, videos, "Videos fetched successfully"));
+    res.status(200).json(new apiResponse(200, videos, "subscription Videos fetched successfully"));
 });
 
 const addVideoView = asyncHandler(async (req, res) => {
@@ -181,6 +251,15 @@ const addVideoView = asyncHandler(async (req, res) => {
     if (!video) {
         throw new apiError(400, "invalid Video Id is required");
     }
+    if (user_id) {
+        const user = await User.findById(user_id);
+        if (!user.watchHistory.includes(video_id)) {
+            user.watchHistory.push(video_id);
+            await user.save();
+        }
+    }
+    video.views += 1;
+    await video.save();
     const viewBy = user_id ? user_id : null;
     const view = await View.create({
         viewBy,
@@ -191,4 +270,4 @@ const addVideoView = asyncHandler(async (req, res) => {
         res.status(200).json(new apiResponse(200, {}, "view successfully added"));
     }
 });
-export { uploadVideo, toggleVideoPublish, deleteVideo, getAllVideos, getSubscriptionVideos, addVideoView };
+export { uploadVideo, toggleVideoPublish, deleteVideo, getAllVideos, getSubscriptionVideos, addVideoView, getVideo };

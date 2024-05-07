@@ -350,7 +350,14 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 });
 
 const getWatchHistory = asyncHandler(async (req, res) => {
-    const user = await User.aggregate([
+    const _id = req.user._id;
+    const options = {
+        page: req.query.page || 1,
+        limit: req.query.limit || 20,
+        sort: req.query.sort ? { createdAt: parseInt(req.query.sort) } : { createdAt: -1 },
+    };
+
+    const pipeline = User.aggregate([
         {
             $match: {
                 _id: new mongoose.Types.ObjectId(req.user._id),
@@ -390,8 +397,23 @@ const getWatchHistory = asyncHandler(async (req, res) => {
                 ],
             },
         },
+        {
+            $unwind: "$watchHistory",
+        },
+        {
+            $match: {
+                "watchHistory.isPublished": true,
+            },
+        },
+        {
+            $replaceRoot: { newRoot: "$watchHistory" },
+        },
     ]);
-    return res.status(200).json(new apiResponse(200, user[0].watchHistory, "Watch history fetched successfully"));
+    const watchHistory = await User.aggregatePaginate(pipeline, options);
+    if (!watchHistory) {
+        throw new apiError(500, "Error fetching watchHistory");
+    }
+    return res.status(200).json(new apiResponse(200, watchHistory, "Watch history fetched successfully"));
 });
 
 export {
@@ -407,5 +429,5 @@ export {
     forgetPasswordEmail,
     resetPassword,
     getUserChannelProfile,
-    getWatchHistory
+    getWatchHistory,
 };

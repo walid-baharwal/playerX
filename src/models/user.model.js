@@ -1,7 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-
+import AggregatePaginate from "mongoose-aggregate-paginate-v2";
 const userSchema = new Schema(
     {
         username: {
@@ -102,4 +102,5 @@ userSchema.methods.generateRefreshToken = function () {
     );
 };
 
+userSchema.plugin(AggregatePaginate)
 export const User = mongoose.model("User", userSchema);

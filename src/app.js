@@ -23,11 +23,13 @@ import userRouter from "./routes/user.routes.js";
 import subscriptionRouter from "./routes/subscription.routes.js";
 import likeRouter from "./routes/like.routes.js";
 import videoRouter from "./routes/video.routes.js";
+import tweetRouter from "./routes/tweet.routes.js";
 
 app.use("/api/v1/u", userRouter);
 app.use("/api/v1/sub", subscriptionRouter);
 app.use("/api/v1/like", likeRouter);
 app.use("/api/v1/v", videoRouter);
+app.use("/api/v1/tweet",tweetRouter);
 
 //Error handling for all errors
 app.use((err, req, res, next) => {

@@ -11,7 +11,7 @@ const commentSchema = new Schema(
             type: Schema.Types.ObjectId,
             ref: "Tweet",
         },
-        Video: {
+        video: {
             type: Schema.Types.ObjectId,
             ref: "Video",
         },

@@ -31,7 +31,7 @@ app.use("/api/v1/sub", subscriptionRouter);
 app.use("/api/v1/like", likeRouter);
 app.use("/api/v1/v", videoRouter);
 app.use("/api/v1/tweet",tweetRouter);
-app.use("/api/v1/comment")
+app.use("/api/v1/comment",commentRouter);
 
 //Error handling for all errors
 app.use((err, req, res, next) => {
